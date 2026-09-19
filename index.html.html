@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>英語單字大冒險 🪙 Word Quest 311</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Canvas Confetti 慶祝特效 -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    }
+    .font-game { font-family: 'Fredoka One', cursive; }
+    .gold-glow { text-shadow: 0 0 12px rgba(251, 191, 36, 0.8); }
+    .card-bounce { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .card-bounce:hover { transform: translateY(-4px); box-shadow: 0 10px 25px -5px rgba(124, 58, 237, 0.5); }
+  </style>
+</head>
+<body class="text-white min-h-screen flex flex-col items-center p-4">
+
+  <!-- 頂部標題與個人狀態 -->
+  <header class="w-full max-w-2xl flex justify-between items-center my-4 p-4 bg-slate-800/80 rounded-2xl border border-slate-700 backdrop-blur-md">
+    <div>
+      <h1 class="text-2xl font-game text-yellow-400 gold-glow tracking-wider">WORD QUEST 311</h1>
+      <p id="user-display" class="text-xs text-slate-400">請先登入開始闖關</p>
+    </div>
+    <div class="flex items-center space-x-2 bg-yellow-500/20 px-4 py-2 rounded-xl border border-yellow-500/40">
+      <span class="text-2xl">🪙</span>
+      <span id="coin-count" class="text-xl font-game text-yellow-300">0</span>
+    </div>
+  </header>
+
+  <!-- 主要內容區域 -->
+  <main class="w-full max-w-2xl flex-1 flex flex-col justify-center">
+    
+    <!-- 1. 學生登入視窗 -->
+    <section id="view-login" class="bg-slate-800/90 p-8 rounded-3xl border border-purple-500/30 shadow-2xl space-y-6">
+      <h2 class="text-2xl font-bold text-center text-purple-300">🎮 冒險者登入</h2>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm text-slate-400 mb-1">班級 / 座號 / 姓名</label>
+          <input type="text" id="input-name" placeholder="例如：五年一班 05 號 張小明" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500">
+        </div>
+        <button onclick="login()" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 font-bold py-3.5 rounded-xl shadow-lg transition duration-200">
+          開始挑戰 🚀
+        </button>
+      </div>
+    </section>
+
+    <!-- 2. 關卡選擇視窗 -->
+    <section id="view-levels" class="hidden space-y-6">
+      <div class="flex justify-between items-center">
+        <h2 class="text-xl font-bold text-purple-300">📍 選擇本週關卡 (每關 10 字)</h2>
+        <button onclick="showLeaderboard()" class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-sm px-3 py-1.5 rounded-lg">🏆 每日排行榜</button>
+      </div>
+      <div id="level-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <!-- 動態渲染 32 關卡 -->
+      </div>
+    </section>
+
+    <!-- 3. 小遊戲答題視窗 -->
+    <section id="view-game" class="hidden bg-slate-800/90 p-6 rounded-3xl border border-purple-500/30 shadow-2xl space-y-6">
+      <div class="flex justify-between items-center text-sm text-slate-400">
+        <span id="game-progress">進度：1 / 10</span>
+        <button onclick="backToLevels()" class="text-slate-400 hover:text-white">✕ 放棄退出</button>
+      </div>
+      
+      <div class="text-center py-8 bg-slate-900/50 rounded-2xl border border-slate-700/50">
+        <span class="text-xs text-purple-400 uppercase font-game tracking-widest">Target Word</span>
+        <h3 id="target-word" class="text-4xl font-game text-yellow-300 mt-2 gold-glow">bad</h3>
+      </div>
+
+      <div id="options-container" class="grid grid-cols-1 gap-3">
+        <!-- 動態生成選項按鈕 -->
+      </div>
+    </section>
+
+    <!-- 4. 每日排行榜視窗 -->
+    <section id="view-leaderboard" class="hidden bg-slate-800/90 p-6 rounded-3xl border border-yellow-500/30 shadow-2xl space-y-6">
+      <div class="flex justify-between items-center">
+        <h2 class="text-2xl font-bold text-yellow-400 flex items-center gap-2">🏆 今日金幣英雄榜</h2>
+        <button onclick="backToLevels()" class="text-slate-400 hover:text-white text-sm">返回關卡</button>
+      </div>
+      <div id="leaderboard-list" class="space-y-3">
+        <!-- 動態渲染排行榜 -->
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // 範例單字庫：Part A 拼讀字前 20 字範例 (完整可擴充至 311 字)[cite: 1]
+    const wordBank = [
+      { word: "bad", chinese: "壞的" },[cite: 1]
+      { word: "mad", chinese: "生氣的" },[cite: 1]
+      { word: "sad", chinese: "難過的" },[cite: 1]
+      { word: "fan", chinese: "電扇" },[cite: 1]
+      { word: "man", chinese: "男人" },[cite: 1]
+      { word: "ham", chinese: "火腿" },[cite: 1]
+      { word: "bat", chinese: "球棒" },[cite: 1]
+      { word: "cat", chinese: "貓" },[cite: 1]
+      { word: "fat", chinese: "胖的" },[cite: 1]
+      { word: "hat", chinese: "帽子" },[cite: 1]
+      { word: "kid", chinese: "孩子" },[cite: 1]
+      { word: "lid", chinese: "蓋子" },[cite: 1]
+      { word: "dig", chinese: "挖洞" },[cite: 1]
+      { word: "pig", chinese: "豬" },[cite: 1]
+      { word: "fin", chinese: "魚鰭" },[cite: 1]
+      { word: "win", chinese: "獲勝" },[cite: 1]
+      { word: "kit", chinese: "工具箱" },[cite: 1]
+      { word: "hit", chinese: "打擊" },[cite: 1]
+      { word: "job", chinese: "職業" },[cite: 1]
+      { word: "mom", chinese: "媽媽" }[cite: 1]
+    ];
+
+    let currentUser = "";
+    let userCoins = 0;
+    let currentLevel = 0;
+    let currentQuestionIndex = 0;
+    let levelWords = [];
+
+    // 初始化與登入
+    function login() {
+      const nameInput = document.getElementById('input-name').value.trim();
+      if (!nameInput) return alert("請輸入班級、座號與姓名！");
+      
+      currentUser = nameInput;
+      document.getElementById('user-display').innerText = `👤 冒險者：${currentUser}`;
+      loadUserData();
+      
+      switchView('view-levels');
+      renderLevels();
+    }
+
+    // 讀取個人數據
+    function loadUserData() {
+      const data = JSON.parse(localStorage.getItem(`user_${currentUser}`)) || { coins: 0 };
+      userCoins = data.coins;
+      updateCoinDisplay();
+    }
+
+    // 更新金幣顯示與本地數據
+    function addCoins(amount) {
+      userCoins += amount;
+      updateCoinDisplay();
+      localStorage.setItem(`user_${currentUser}`, JSON.stringify({ coins: userCoins }));
+      saveToLeaderboard();
+    }
+
+    function updateCoinDisplay() {
+      document.getElementById('coin-count').innerText = userCoins;
+    }
+
+    // 視窗切換
+    function switchView(viewId) {
+      ['view-login', 'view-levels', 'view-game', 'view-leaderboard'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+      document.getElementById(viewId).classList.remove('hidden');
+    }
+
+    // 渲染關卡 (311字/10字 = 32關)[cite: 1]
+    function renderLevels() {
+      const grid = document.getElementById('level-grid');
+      grid.innerHTML = "";
+      const totalLevels = Math.ceil(wordBank.length / 10);
+
+      for (let i = 0; i < totalLevels; i++) {
+        const btn = document.createElement('button');
+        btn.className = "card-bounce bg-slate-800 border border-purple-500/40 p-4 rounded-2xl flex flex-col items-center justify-center space-y-1";
+        btn.onclick = () => startLevel(i);
+        btn.innerHTML = `
+          <span class="text-xs text-purple-400 font-game">WEEK ${i + 1}</span>
+          <span class="text-lg font-bold">第 ${i + 1} 關</span>
+          <span class="text-xs text-slate-400">10 個單字</span>
+        `;
+        grid.appendChild(btn);
+      }
+    }
+
+    // 開始關卡
+    function startLevel(levelIndex) {
+      currentLevel = levelIndex;
+      currentQuestionIndex = 0;
+      const start = levelIndex * 10;
+      levelWords = wordBank.slice(start, start + 10);
+      
+      if (levelWords.length === 0) return alert("該關卡暫無單字！");
+
+      switchView('view-game');
+      loadQuestion();
+    }
+
+    // 載入題目
+    function loadQuestion() {
+      const currentWord = levelWords[currentQuestionIndex];
+      document.getElementById('game-progress').innerText = `進度：${currentQuestionIndex + 1} / ${levelWords.length}`;
+      document.getElementById('target-word').innerText = currentWord.word;
+
+      // 生成選項 (1正確 + 2干擾)
+      const optionsContainer = document.getElementById('options-container');
+      optionsContainer.innerHTML = "";
+
+      let options = [currentWord.chinese];
+      while (options.length < 3 && options.length < wordBank.length) {
+        const randomWord = wordBank[Math.floor(Math.random() * wordBank.length)].chinese;
+        if (!options.includes(randomWord)) options.push(randomWord);
+      }
+      options.sort(() => Math.random() - 0.5);
+
+      options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = "w-full bg-slate-700/60 hover:bg-purple-600/50 border border-slate-600 hover:border-purple-400 text-lg py-3 rounded-xl font-bold transition duration-150";
+        btn.innerText = opt;
+        btn.onclick = () => checkAnswer(opt === currentWord.chinese, btn);
+        optionsContainer.appendChild(btn);
+      });
+    }
+
+    // 檢查答案
+    function checkAnswer(isCorrect, btnElement) {
+      if (isCorrect) {
+        btnElement.classList.add('bg-green-600', 'border-green-400');
+        addCoins(10);
+        confetti({ particleCount: 40, spread: 60, origin: { y: 0.8 } });
+
+        setTimeout(() => {
+          currentQuestionIndex++;
+          if (currentQuestionIndex < levelWords.length) {
+            loadQuestion();
+          } else {
+            alert(`🎉 恭喜通關！獲得金幣獎勵！`);
+            backToLevels();
+          }
+        }, 600);
+      } else {
+        btnElement.classList.add('bg-red-600', 'border-red-400');
+        setTimeout(() => btnElement.classList.remove('bg-red-600', 'border-red-400'), 500);
+      }
+    }
+
+    function backToLevels() { switchView('view-levels'); }
+
+    // 排行榜功能
+    function saveToLeaderboard() {
+      let board = JSON.parse(localStorage.getItem('daily_leaderboard')) || {};
+      board[currentUser] = userCoins;
+      localStorage.setItem('daily_leaderboard', JSON.stringify(board));
+    }
+
+    function showLeaderboard() {
+      switchView('view-leaderboard');
+      const board = JSON.parse(localStorage.getItem('daily_leaderboard')) || {};
+      const sorted = Object.entries(board).sort((a, b) => b[1] - a[1]);
+
+      const list = document.getElementById('leaderboard-list');
+      list.innerHTML = sorted.length === 0 ? `<p class="text-center text-slate-500 py-4">今天還沒有玩家上榜喔！</p>` : "";
+
+      sorted.forEach(([name, coins], index) => {
+        const item = document.createElement('div');
+        item.className = "flex justify-between items-center bg-slate-900/60 p-3.5 rounded-xl border border-slate-700";
+        item.innerHTML = `
+          <div class="flex items-center space-x-3">
+            <span class="font-game text-lg ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-slate-300' : index === 2 ? 'text-amber-600' : 'text-slate-500'}">#${index + 1}</span>
+            <span class="font-bold">${name}</span>
+          </div>
+          <div class="flex items-center space-x-1 font-game text-yellow-300">
+            <span>🪙</span>
+            <span>${coins}</span>
+          </div>
+        `;
+        list.appendChild(item);
+      });
+    }
+  </script>
+</body>
+</html>
